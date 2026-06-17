@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Segmentasi Pelanggan RFM &amp; K-Means — Kelompok</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:        #08182E;
+  --navy-2:      #0D2240;
+  --navy-3:      #132D56;
+  --navy-card:   rgba(255,255,255,0.04);
+  --navy-hover:  rgba(255,255,255,0.07);
+  --cyan:        #00D4B8;
+  --cyan-2:      #00B09A;
+  --cyan-glow:   rgba(0,212,184,0.18);
+  --cyan-faint:  rgba(0,212,184,0.07);
+  --white:       #FFFFFF;
+  --muted:       rgba(255,255,255,0.55);
+  --faint:       rgba(255,255,255,0.22);
+  --border:      rgba(255,255,255,0.09);
+  --border-c:    rgba(0,212,184,0.22);
+  --red:         #FF6B6B;
+  --red-bg:      rgba(255,107,107,0.10);
+  --red-border:  rgba(255,107,107,0.28);
+  --amber:       #FFB84D;
+  --blue-badge:  #7BA7FF;
+  --slide-w:     1280px;
+  --r:           10px;
+  --r-sm:        6px;
+}
+
+html { font-size: 16px; }
+
+body {
+  background: #050E1C;
+  font-family: 'Inter', sans-serif;
+  color: var(--white);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 64px 16px 56px;
+}
+
+/* TOP NAV */
+.topnav {
+  position: fixed; top: 0; left: 0; right: 0; height: 52px;
+  background: rgba(5,14,28,0.97);
+  border-bottom: 1px solid var(--border-c);
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 20px; gap: 16px; z-index: 200;
+}
+.topnav-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px; font-weight: 600; color: var(--cyan);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 480px;
+}
+.topnav-title span { color: var(--muted); font-weight: 400; }
+.nav-ctrl { display: flex; align-items: center; gap: 6px; }
+.nbtn {
+  width: 30px; height: 30px; border-radius: 6px;
+  background: var(--navy-card); border: 1px solid var(--border);
+  color: var(--white); cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, border-color .15s;
+}
+.nbtn:hover { background: var(--cyan-glow); border-color: var(--border-c); }
+.ncount { font-size: 11px; color: var(--muted); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.nprogress {
+  height: 3px; background: var(--border); border-radius: 2px;
+  overflow: hidden; width: 120px;
+}
+.nprogress-fill {
+  height: 100%; background: var(--cyan); border-radius: 2px;
+  transition: width .3s ease;
+}
+
+/* DECK + SLIDE */
+.deck { width: 100%; max-width: var(--slide-w); }
+
+.slide {
+  width: 100%; aspect-ratio: 16/9;
+  background: var(--navy);
+  border-radius: 14px;
+  border: 1px solid var(--border-c);
+  overflow: hidden; position: relative;
+  display: none; flex-direction: column;
+  padding: 0;
+  background-image: radial-gradient(circle, rgba(0,212,184,0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-color: var(--navy);
+}
+.slide.active { display: flex; animation: fadeIn .22s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.slide::after {
+  content: ''; position: absolute; top: 18%; left: 0;
+  width: 3px; height: 64%; background: var(--cyan);
+  border-radius: 0 2px 2px 0; opacity: .45;
+}
+
+.s-tag {
+  position: absolute; top: 18px; left: 28px;
+  font-size: 9px; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--cyan); z-index: 10;
+}
+.snum {
+  position: absolute; bottom: 16px; right: 22px;
+  font-size: 10px; color: var(--faint);
+  font-variant-numeric: tabular-nums; z-index: 10;
+}
+.slide-inner {
+  position: absolute; inset: 0;
+  padding: 44px 40px 28px;
+  display: flex; flex-direction: column;
+}
+h2.sh {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(15px,1.9vw,24px); font-weight: 700;
+  line-height: 1.2; margin-bottom: 4px;
+}
+p.sd {
+  font-size: clamp(9px,.9vw,12px); color: var(--muted);
+  margin-bottom: 18px; line-height: 1.5;
+}
+.cyan { color: var(--cyan); }
+.red  { color: var(--red); }
+.amb  { color: var(--amber); }
+
+.card {
+  background: var(--navy-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+}
+.card-c {
+  background: var(--cyan-faint);
+  border: 1px solid var(--border-c);
+  border-radius: var(--r);
+  padding: 14px 16px;
+}
+
+.ibadge {
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: var(--cyan-glow); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--cyan);
+}
+
+.pill { display: inline-block; border-radius: 20px; padding: 2px 9px; font-size: 9px; font-weight: 600; }
+.pill-vip  { background: rgba(0,212,184,.14); color: var(--cyan); border: 1px solid var(--border-c); }
+.pill-dorm { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.pill-pot  { background: rgba(123,167,255,.14); color: var(--blue-badge); border: 1px solid rgba(123,167,255,.25); }
+.pill-loy  { background: rgba(255,184,77,.12); color: var(--amber); border: 1px solid rgba(255,184,77,.25); }
+
+.iph {
+  width: 100%; height: 100%;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--border-c);
+  border-radius: 8px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.iph img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* SLIDE 1 — TITLE */
+#s1 { flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 8%; }
+#s1::after { display: none; }
+#s1 .ca { position: absolute; width: 80px; height: 80px; opacity: .18; }
+#s1 .ca-tl { top: 0; left: 0; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); border-radius: var(--r) 0 0 0; }
+#s1 .ca-br { bottom: 0; right: 0; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); border-radius: 0 0 var(--r) 0; }
+#s1 .logo { width: 46px; height: 46px; margin-bottom: 14px; border-radius: 8px; }
+#s1 .chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--cyan-glow); border: 1px solid var(--border-c);
+  border-radius: 20px; padding: 4px 14px;
+  font-size: 10px; font-weight: 600; color: var(--cyan);
+  letter-spacing: .05em; margin-bottom: 18px;
+}
+#s1 h1 {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(16px,2.3vw,28px); font-weight: 800;
+  line-height: 1.22; max-width: 700px; margin-bottom: 8px;
+}
+#s1 .by { font-size: clamp(9px,.85vw,11px); color: var(--muted); margin-bottom: 24px; letter-spacing: .04em; }
+#s1 .rule { width: 56px; height: 2px; background: var(--border-c); border-radius: 2px; margin: 0 auto 20px; }
+#s1 .members { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
+#s1 .mc {
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 10px 18px; text-align: left; min-width: 200px;
+  transition: border-color .2s;
+}
+#s1 .mc:hover { border-color: var(--border-c); }
+#s1 .mc .idx { font-size: 8px; font-weight: 700; color: var(--cyan); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 3px; }
+#s1 .mc .nm { font-family: 'Poppins', sans-serif; font-size: clamp(10px,1vw,12px); font-weight: 600; }
+#s1 .mc .nim { font-size: 9px; color: var(--muted); margin-top: 1px; font-variant-numeric: tabular-nums; }
+#s1 .dosen { font-size: 9px; color: var(--muted); margin-bottom: 16px; }
+#s1 .dosen strong { color: var(--white); font-weight: 600; }
+#s1 .univ-bar {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--cyan-faint); border: 1px solid var(--border-c);
+  border-radius: 8px; padding: 7px 18px;
+  font-size: clamp(9px,.8vw,11px); color: var(--muted);
+}
+#s1 .univ-bar strong { color: var(--white); font-weight: 600; }
+
+/* SLIDE 2 — PENDAHULUAN */
+#s2 .grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; }
+#s2 .g4c {
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 13px 15px;
+  display: flex; flex-direction: column; gap: 7px;
+  transition: border-color .2s;
+}
+#s2 .g4c:hover { border-color: var(--border-c); }
+#s2 .g4c h3 { font-family: 'Poppins',sans-serif; font-size: clamp(10px,.95vw,13px); font-weight: 600; }
+#s2 .g4c p  { font-size: clamp(8px,.78vw,11px); color: var(--muted); line-height: 1.55; }
+#s2 .stats { display: flex; gap: 10px; margin-top: 12px; }
+#s2 .scard {
+  flex: 1; background: var(--cyan-faint); border: 1px solid var(--border-c);
+  border-radius: 8px; padding: 10px 12px; text-align: center;
+}
+#s2 .scard .sv { font-family: 'Poppins',sans-serif; font-size: clamp(15px,1.7vw,21px); font-weight: 800; color: var(--cyan); }
+#s2 .scard .sl { font-size: 9px; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+
+/* SLIDE 3 — RFM MODEL */
+#s3 .lay { display: grid; grid-template-columns: 1fr; gap: 12px; flex: 1; }
+#s3 .rfmgrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; flex: 1; }
+#s3 .rfmcard {
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+#s3 .rfmcard .rftag { font-size: 8px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
+#s3 .rfmcard h3 { font-family: 'Poppins',sans-serif; font-size: clamp(13px,1.3vw,17px); font-weight: 700; }
+#s3 .rfmcard .rfdef { font-size: clamp(9px,.85vw,11px); color: var(--white); line-height: 1.5; }
+#s3 .rfmcard .rfbiz { font-size: clamp(8px,.78vw,10.5px); color: var(--muted); line-height: 1.55; border-top: 1px solid var(--border); padding-top: 8px; margin-top: auto; }
+#s3 .rficon { width: 34px; height: 34px; background: var(--cyan-glow); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--cyan); }
+#s3 .quotebar {
+  background: var(--cyan-faint); border: 1px solid var(--border-c); border-radius: 9px;
+  padding: 10px 16px; font-size: clamp(9px,.85vw,11.5px); color: var(--muted); line-height: 1.55; text-align: center;
+}
+
+/* SLIDE 4 — KMEANS & EVALUASI */
+#s4 .lay { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 14px; flex: 1; }
+#s4 .thm {
+  background: var(--cyan-faint); border: 1px solid var(--border-c);
+  border-radius: 9px; padding: 11px 14px; text-align: center; margin-bottom: 10px;
+}
+#s4 .thm .tl { font-size: 8px; color: var(--cyan); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+#s4 .thm code { font-size: clamp(9px,.9vw,12px); color: var(--white); font-family: 'Courier New',monospace; }
+#s4 .rs { display: flex; flex-direction: column; gap: 7px; }
+#s4 .ri {
+  display: flex; align-items: flex-start; gap: 9px;
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 11px;
+}
+#s4 .ri .rn {
+  width: 20px; height: 20px; flex-shrink: 0;
+  background: var(--cyan-glow); border: 1px solid var(--border-c);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: var(--cyan);
+}
+#s4 .ri h4 { font-size: clamp(10px,.9vw,12px); font-weight: 600; margin-bottom: 2px; }
+#s4 .ri p  { font-size: clamp(8px,.75vw,10px); color: var(--muted); line-height: 1.45; }
+#s4 .evalbox { background: var(--navy-card); border: 1px solid var(--border); border-radius: var(--r); padding: 13px 15px; display: flex; flex-direction: column; gap: 10px; height: 100%; }
+#s4 .evalbox h4 { font-size: 9px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: .09em; }
+#s4 .evalbox p { font-size: clamp(8px,.8vw,11px); color: var(--muted); line-height: 1.55; }
+#s4 .scalerow { display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: var(--muted); }
+#s4 .scalebar { height: 8px; background: rgba(255,255,255,.07); border-radius: 5px; overflow:hidden; margin: 5px 0 10px; position: relative; }
+#s4 .scalefill { position:absolute; top:0; bottom:0; background: linear-gradient(90deg, var(--red), var(--amber), var(--cyan)); border-radius:5px; }
+#s4 .scaledot { position:absolute; top:-3px; width: 14px; height: 14px; border-radius: 50%; background: var(--white); border: 2px solid var(--navy); }
+
+/* SLIDE 5 — DATASET */
+#s5 .lay { display: grid; grid-template-columns: 1fr 1.1fr; gap: 14px; flex: 1; }
+#s5 .infobox { background: var(--navy-card); border: 1px solid var(--border); border-radius: var(--r); padding: 13px 15px; }
+#s5 .infobox h4 { font-size: 9px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 9px; }
+#s5 .irow { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 11px; }
+#s5 .irow:last-child { border-bottom: none; }
+#s5 .irow .k { color: var(--muted); }
+#s5 .irow .v { font-weight: 500; }
+#s5 .colgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+#s5 .coltag { background: var(--navy-3); border-radius: 6px; padding: 5px 9px; font-size: 9px; text-align:center; color: var(--muted); }
+#s5 .tbox { background: var(--navy-card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; height: 100%; }
+#s5 table { width: 100%; border-collapse: collapse; }
+#s5 th { background: rgba(0,212,184,.1); font-size: 9px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: .07em; text-align: left; padding: 7px 11px; }
+#s5 td { font-size: 10px; padding: 6px 11px; border-top: 1px solid rgba(255,255,255,.04); color: var(--muted); }
+#s5 td:first-child { color: var(--white); }
+
+/* SLIDE 6 — PREPROCESSING */
+#s6 .pipe { display: flex; gap: 0; flex: 0 0 auto; margin-bottom: 14px; }
+#s6 .pstep {
+  flex: 1; background: var(--navy-card); border: 1px solid var(--border);
+  padding: 13px 13px; display: flex; flex-direction: column; gap: 7px;
+  position: relative;
+}
+#s6 .pstep:first-child { border-radius: var(--r) 0 0 var(--r); }
+#s6 .pstep:last-child  { border-radius: 0 var(--r) var(--r) 0; }
+#s6 .pstep:not(:last-child) { border-right: none; }
+#s6 .pstep .pn  { font-size: 8px; font-weight: 700; color: var(--cyan); letter-spacing: .12em; text-transform: uppercase; }
+#s6 .pstep .pi  { font-size: 18px; color: var(--cyan); }
+#s6 .pstep h4   { font-family: 'Poppins',sans-serif; font-size: clamp(10px,.95vw,13px); font-weight: 600; }
+#s6 .pstep p    { font-size: clamp(8px,.72vw,10.5px); color: var(--muted); line-height: 1.5; }
+#s6 .parr { display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--cyan); padding: 0 4px; background: var(--navy-card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+#s6 .shrinkbox { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+#s6 .shc { background: var(--navy-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; text-align:center; }
+#s6 .shc .shl { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px; }
+#s6 .shc .shv { font-family:'Poppins',sans-serif; font-size: clamp(16px,1.8vw,22px); font-weight: 800; color: var(--cyan); }
+#s6 .sharr { font-size: 18px; color: var(--cyan); text-align: center; }
+
+/* SLIDE 7 — RFM FEATURE ENGINEERING */
+#s7 .lay { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; }
+#s7 .left { display: flex; flex-direction: column; gap: 9px; }
+#s7 .fcard {
+  background: var(--cyan-faint); border: 1px solid var(--border-c);
+  border-radius: 9px; padding: 10px 14px;
+}
+#s7 .fcard .fl { font-size: 8px; color: var(--cyan); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+#s7 .fcard code { font-size: clamp(9px,.95vw,12px); color: var(--white); font-family: 'Courier New',monospace; font-weight: 600; }
+#s7 .pt { display: flex; align-items: flex-start; gap: 9px; background: var(--navy-card); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; }
+#s7 .pt i { color: var(--cyan); font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+#s7 .pt p { font-size: clamp(8px,.78vw,11px); color: var(--muted); line-height: 1.5; }
+#s7 .pt p strong { color: var(--white); font-weight: 500; }
+#s7 .right { display: flex; flex-direction: column; gap: 9px; }
+#s7 .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#s7 .sc {
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; text-align: center;
+}
+#s7 .sc .sv { font-family: 'Poppins',sans-serif; font-size: clamp(14px,1.6vw,19px); font-weight: 700; color: var(--cyan); }
+#s7 .sc .sl { font-size: 8px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+#s7 .toolrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+#s7 .tooltag { background: var(--navy-3); border-radius: 20px; padding: 4px 11px; font-size: 9px; color: var(--muted); }
+
+/* SLIDE 8 — ELBOW METHOD */
+#s8 .lay { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 14px; flex: 1; }
+#s8 .left { display: flex; flex-direction: column; gap: 10px; }
+#s8 .kbig {
+  background: var(--cyan-faint); border: 1px solid var(--border-c);
+  border-radius: var(--r); padding: 14px 18px; text-align: center;
+}
+#s8 .kbig .kl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 3px; }
+#s8 .kbig .kv { font-family: 'Poppins',sans-serif; font-size: clamp(26px,3.8vw,46px); font-weight: 800; color: var(--cyan); line-height: 1; }
+#s8 .kbig .ks { font-size: 9px; color: var(--muted); margin-top: 4px; }
+#s8 .wlist { display:flex; flex-direction:column; gap:6px; }
+#s8 .wrow { display:flex; justify-content:space-between; align-items:center; background: var(--navy-card); border:1px solid var(--border); border-radius:7px; padding:6px 11px; font-size:10px; }
+#s8 .wrow .wk { color: var(--cyan); font-weight:700; }
+#s8 .wrow .wv { color: var(--muted); }
+#s8 .wrow.hl { border-color: var(--border-c); background: var(--cyan-glow); }
+#s8 .right { min-height: 0; }
+
+/* SLIDE 9 — HASIL CLUSTERING */
+#s9 .lay { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 14px; flex: 1; }
+#s9 .acc {
+  background: var(--cyan-faint); border: 1px solid var(--border-c);
+  border-radius: var(--r); padding: 12px 16px; text-align: center; margin-bottom: 10px;
+}
+#s9 .acc .al { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 3px; }
+#s9 .acc .av { font-family: 'Poppins',sans-serif; font-size: clamp(24px,3.4vw,38px); font-weight: 800; color: var(--cyan); line-height: 1; }
+#s9 .acc .as { font-size: 9px; color: var(--muted); margin-top: 4px; }
+#s9 .tbox { background: var(--navy-card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+#s9 table { width: 100%; border-collapse: collapse; }
+#s9 th { background: rgba(0,212,184,.1); font-size: 8.5px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: .05em; text-align: left; padding: 6px 8px; }
+#s9 td { font-size: 9.5px; padding: 6px 8px; border-top: 1px solid rgba(255,255,255,.04); color: var(--muted); }
+#s9 td:first-child { color: var(--white); }
+#s9 .right { min-height: 0; }
+
+/* SLIDE 10 — PROFIL SEGMEN */
+#s10 .seggrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; }
+#s10 .segcard {
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#s10 .segcard.vip  { border-color: var(--border-c); background: var(--cyan-faint); }
+#s10 .segcard.dorm { border-color: var(--red-border); background: var(--red-bg); }
+#s10 .seghead { display:flex; align-items:center; justify-content:space-between; }
+#s10 .seghead h3 { font-family:'Poppins',sans-serif; font-size: clamp(11px,1.05vw,14px); font-weight:700; }
+#s10 .segmeta { display:flex; gap:6px; font-size: 9px; color: var(--muted); }
+#s10 .segmeta b { color: var(--white); }
+#s10 .segp { font-size: clamp(8px,.76vw,10.5px); color: var(--muted); line-height: 1.5; }
+
+/* SLIDE 11 — REKOMENDASI STRATEGI */
+#s11 .lay { display: grid; grid-template-columns: 1fr; gap: 12px; flex: 1; }
+#s11 .tbox { background: var(--navy-card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+#s11 table { width: 100%; border-collapse: collapse; }
+#s11 th { background: rgba(0,212,184,.1); font-size: 9px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 7px 10px; }
+#s11 td { font-size: 9.5px; padding: 7px 10px; border-top: 1px solid rgba(255,255,255,.04); color: var(--muted); vertical-align: top; }
+#s11 td:first-child { color: var(--white); font-weight: 500; }
+#s11 .budgetrow { display: flex; gap: 8px; }
+#s11 .bc { flex:1; background: var(--navy-card); border:1px solid var(--border); border-radius:8px; padding:9px 10px; text-align:center; }
+#s11 .bc .bv { font-family:'Poppins',sans-serif; font-size: clamp(14px,1.6vw,19px); font-weight:800; color: var(--cyan); }
+#s11 .bc .bl { font-size: 8px; color: var(--muted); margin-top:2px; line-height:1.3; }
+
+/* SLIDE 12 — KESIMPULAN */
+#s12 .lay { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; }
+#s12 .box { background: var(--navy-card); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; }
+#s12 .box h4 { font-size: 9px; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+#s12 .ci { display: flex; align-items: flex-start; gap: 7px; margin-bottom: 6px; font-size: clamp(8px,.74vw,10.5px); color: var(--muted); line-height: 1.5; }
+#s12 .ci i { color: var(--cyan); font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+#s12 .si i { color: var(--amber); font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+#s12 .closing {
+  background: var(--cyan-faint); border: 1px solid var(--border-c);
+  border-radius: 9px; padding: 11px 18px;
+  margin-top: 12px; text-align: center;
+  font-size: clamp(9px,.88vw,12px); color: rgba(0,212,184,.85); font-weight: 500;
+}
+
+/* THUMBNAILS */
+.thumbrow {
+  display: flex; gap: 7px; overflow-x: auto; padding: 10px 0 4px;
+  scrollbar-width: thin; scrollbar-color: rgba(0,212,184,.25) transparent;
+}
+.thumb {
+  flex-shrink: 0; width: 84px; height: 50px;
+  background: var(--navy-2); border-radius: 6px;
+  border: 1.5px solid transparent;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 9.5px; color: var(--muted); font-weight: 500; text-align: center; padding: 4px;
+  line-height: 1.3; transition: border-color .15s, color .15s;
+}
+.thumb:hover { border-color: rgba(0,212,184,.4); color: var(--white); }
+.thumb.on { border-color: var(--cyan); color: var(--cyan); }
+
+.keyhint { margin-top: 10px; font-size: 10px; color: rgba(255,255,255,.2); text-align: center; }
+.keyhint kbd {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px; padding: 1px 5px; font-family: 'Inter',sans-serif;
+  font-size: 9px; color: rgba(255,255,255,.35);
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <span class="topnav-title">Segmentasi Pelanggan RFM &amp; K-Means &nbsp;<span>| Teknik Informatika &middot; Universitas Trunojoyo Madura</span></span>
+  <div class="nav-ctrl">
+    <div class="nprogress"><div class="nprogress-fill" id="pgbar" style="width:8.3%"></div></div>
+    <button class="nbtn" id="bPrev"><i class="fa fa-chevron-left"></i></button>
+    <span class="ncount" id="nc">1 / 12</span>
+    <button class="nbtn" id="bNext"><i class="fa fa-chevron-right"></i></button>
+  </div>
+</nav>
+
+<div class="deck">
+
+<!-- SLIDE 1 — TITLE -->
+<div class="slide active" id="s1">
+  <div class="ca ca-tl"></div>
+  <div class="ca ca-br"></div>
+  <img class="logo" src="images/logo-utm.jpeg" alt="Logo UTM">
+  <div class="chip"><i class="fa fa-layer-group"></i>&nbsp; Laporan Proyek Akhir Penambangan Data</div>
+  <h1>Segmentasi Pelanggan Menggunakan Algoritma<br><span class="cyan">K-Means Clustering</span><br>Berbasis Model RFM (Recency, Frequency, Monetary)</h1>
+  <p class="by">Customer Segmentation — Unsupervised Learning &amp; Marketing Analytics</p>
+  <div class="rule"></div>
+  <div class="members">
+    <div class="mc"><div class="idx">Anggota 01</div><div class="nm">Ainur Raftuzzaki</div><div class="nim">NIM 240411100034</div></div>
+    <div class="mc"><div class="idx">Anggota 02</div><div class="nm">Muhammad Izzul Millah Aqil</div><div class="nim">NIM 240411100087</div></div>
+  </div>
+  <div class="dosen">Dosen Pengampu: <strong>Dr. Cucun Very Angkoso ST., MT.</strong> &nbsp;&middot;&nbsp; NIP 197802252005011001</div>
+  <div class="univ-bar">
+    <i class="fa fa-university"></i>&nbsp;
+    Prodi Teknik Informatika &nbsp;&middot;&nbsp; Fakultas Teknik &nbsp;&middot;&nbsp; <strong>&nbsp;Universitas Trunojoyo Madura&nbsp;</strong> &nbsp;&middot;&nbsp; 2026
+  </div>
+  <span class="snum">01 / 12</span>
+</div>
+
+<!-- SLIDE 2 — PENDAHULUAN -->
+<div class="slide" id="s2">
+  <span class="s-tag"><i class="fa fa-info-circle"></i>&nbsp; Pendahuluan</span>
+  <div class="slide-inner">
+    <h2 class="sh">Mengapa Segmentasi Pelanggan Itu Penting?</h2>
+    <p class="sd">Memahami perilaku pelanggan secara mendalam di tengah ketatnya persaingan e-commerce</p>
+    <div class="grid4">
+      <div class="g4c">
+        <div class="ibadge"><i class="fa fa-shopping-cart"></i></div>
+        <h3>Persaingan E-Commerce Ketat</h3>
+        <p>Perusahaan ritel online dituntut memahami perilaku pelanggan secara mendalam agar layanan tepat sasaran dan loyalitas meningkat.</p>
+      </div>
+      <div class="g4c">
+        <div class="ibadge"><i class="fa fa-chart-pie"></i></div>
+        <h3>Kerangka Analitik RFM</h3>
+        <p>Recency, Frequency, dan Monetary telah lama digunakan sebagai kerangka sederhana namun sangat powerful untuk mengukur keterlibatan pelanggan.</p>
+      </div>
+      <div class="g4c">
+        <div class="ibadge"><i class="fa fa-object-group"></i></div>
+        <h3>Pendekatan Unsupervised Learning</h3>
+        <p>K-Means Clustering digunakan untuk mengelompokkan pelanggan berdasarkan fitur RFM tanpa memerlukan data berlabel.</p>
+      </div>
+      <div class="g4c">
+        <div class="ibadge"><i class="fa fa-bullseye"></i></div>
+        <h3>Wawasan Strategi Bisnis</h3>
+        <p>Hasil segmentasi memberi wawasan untuk pengambilan keputusan strategis pemasaran &mdash; dari retensi hingga win-back campaign.</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="scard"><div class="sv">541.909</div><div class="sl">Total transaksi mentah dalam dataset Online Retail</div></div>
+      <div class="scard"><div class="sv">4.338</div><div class="sl">Pelanggan valid setelah proses data cleaning</div></div>
+      <div class="scard"><div class="sv">k = 4</div><div class="sl">Jumlah cluster optimal hasil Elbow Method</div></div>
+      <div class="scard"><div class="sv">0,4755</div><div class="sl">Silhouette Score &mdash; kualitas clustering cukup baik</div></div>
+    </div>
+  </div>
+  <span class="snum">02 / 12</span>
+</div>
+
+<!-- SLIDE 3 — RFM MODEL -->
+<div class="slide" id="s3">
+  <span class="s-tag"><i class="fa fa-book"></i>&nbsp; Tinjauan Pustaka</span>
+  <div class="slide-inner">
+    <h2 class="sh">Model RFM: Recency, Frequency, Monetary</h2>
+    <p class="sd">Kerangka analitik database marketing untuk mengukur perilaku pelanggan dari tiga dimensi utama</p>
+    <div class="rfmgrid">
+      <div class="rfmcard">
+        <div class="rficon"><i class="fa fa-calendar-day"></i></div>
+        <div class="rftag">Dimensi R</div>
+        <h3>Recency</h3>
+        <p class="rfdef">Jumlah hari sejak transaksi terakhir pelanggan dilakukan.</p>
+        <p class="rfbiz">Pelanggan dengan Recency rendah (baru belanja) lebih besar kemungkinannya melakukan repeat purchase.</p>
+      </div>
+      <div class="rfmcard">
+        <div class="rficon"><i class="fa fa-redo"></i></div>
+        <div class="rftag">Dimensi F</div>
+        <h3>Frequency</h3>
+        <p class="rfdef">Jumlah transaksi unik (invoice) yang dilakukan pelanggan.</p>
+        <p class="rfbiz">Frekuensi tinggi menandakan engagement yang kuat dan loyalitas yang lebih baik terhadap merek.</p>
+      </div>
+      <div class="rfmcard">
+        <div class="rficon"><i class="fa fa-coins"></i></div>
+        <div class="rftag">Dimensi M</div>
+        <h3>Monetary</h3>
+        <p class="rfdef">Total nilai pembelian pelanggan dalam periode analisis.</p>
+        <p class="rfbiz">Nilai monetary tinggi mengidentifikasi pelanggan bernilai tinggi yang berkontribusi besar pada revenue.</p>
+      </div>
+    </div>
+    <div class="quotebar"><i class="fa fa-lightbulb cyan"></i>&nbsp; Proyek ini mengimplementasikan <strong class="cyan">unsupervised machine learning</strong> &mdash; algoritma K-Means Clustering &mdash; untuk mengelompokkan pelanggan berdasarkan fitur RFM dari dataset transaksi <strong>Online Retail (UCI Machine Learning Repository)</strong>.</div>
+  </div>
+  <span class="snum">03 / 12</span>
+</div>
+
+<!-- SLIDE 4 — K-MEANS & EVALUASI -->
+<div class="slide" id="s4">
+  <span class="s-tag"><i class="fa fa-brain"></i>&nbsp; Tinjauan Pustaka</span>
+  <div class="slide-inner">
+    <h2 class="sh">Algoritma K-Means &amp; Metode Evaluasi</h2>
+    <p class="sd">Algoritma clustering berbasis minimalisasi jarak, dievaluasi dengan Elbow Method dan Silhouette Score</p>
+    <div class="lay">
+      <div>
+        <div class="thm">
+          <div class="tl">Fungsi Objektif K-Means (WCSS)</div>
+          <code>J = &Sigma;ᵢ &Sigma;ⱼ &Vert;xⱼᵢ &minus; &mu;ᵢ&Vert;&sup2;</code>
+        </div>
+        <div class="rs">
+          <div class="ri"><div class="rn">1</div><div><h4>Inisialisasi</h4><p>Pilih k centroid secara acak dari ruang data.</p></div></div>
+          <div class="ri"><div class="rn">2</div><div><h4>Assignment</h4><p>Setiap titik data ditugaskan ke cluster dengan centroid terdekat (jarak Euclidean).</p></div></div>
+          <div class="ri"><div class="rn">3</div><div><h4>Update</h4><p>Hitung ulang centroid setiap cluster sebagai rata-rata seluruh titik di dalamnya.</p></div></div>
+          <div class="ri"><div class="rn">4</div><div><h4>Konvergensi</h4><p>Ulangi langkah Assignment &amp; Update hingga tidak ada perubahan, atau iterasi maksimum tercapai.</p></div></div>
+        </div>
+      </div>
+      <div class="evalbox">
+        <h4><i class="fa fa-chart-line"></i>&nbsp; Elbow Method</h4>
+        <p>Teknik heuristik untuk menentukan jumlah cluster optimal (k). Memplot nilai WCSS terhadap berbagai k dan mencari titik &ldquo;siku&rdquo; di mana penurunan WCSS mulai melambat signifikan.</p>
+        <h4><i class="fa fa-ruler-combined"></i>&nbsp; Silhouette Score</h4>
+        <p>Mengukur seberapa mirip suatu objek dengan cluster-nya sendiri (cohesion) dibandingkan cluster lain (separation). Rentang nilai &minus;1 hingga +1.</p>
+        <div>
+          <div class="scalerow"><span>&minus;1 &middot; cluster salah</span><span>0 &middot; di batas</span><span>+1 &middot; sangat cocok</span></div>
+          <div class="scalebar"><div class="scalefill" style="left:0;right:0"></div><div class="scaledot" style="left:73%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="snum">04 / 12</span>
+</div>
+
+<!-- SLIDE 5 — DATASET -->
+<div class="slide" id="s5">
+  <span class="s-tag"><i class="fa fa-database"></i>&nbsp; Dataset</span>
+  <div class="slide-inner">
+    <h2 class="sh">UCI Online Retail Dataset</h2>
+    <p class="sd">Sumber: UCI Machine Learning Repository &mdash; data transaksi aktual ritel online berbasis United Kingdom</p>
+    <div class="lay">
+      <div class="infobox">
+        <h4><i class="fa fa-info-circle"></i>&nbsp; Informasi Dataset</h4>
+        <div class="irow"><span class="k">Sumber</span><span class="v">UCI Machine Learning Repository</span></div>
+        <div class="irow"><span class="k">Periode Data</span><span class="v">01 Des 2010 &ndash; 09 Des 2011</span></div>
+        <div class="irow"><span class="k">Jumlah Record Awal</span><span class="v cyan">541.909 transaksi</span></div>
+        <div class="irow"><span class="k">Jumlah Kolom</span><span class="v">8 kolom</span></div>
+        <div class="irow"><span class="k">Domain</span><span class="v">E-Commerce / Ritel Online (UK)</span></div>
+        <div class="irow"><span class="k">Pelanggan Teranalisis</span><span class="v cyan">4.338 (setelah cleaning)</span></div>
+        <div class="colgrid">
+          <div class="coltag">InvoiceNo</div><div class="coltag">StockCode</div>
+          <div class="coltag">Description</div><div class="coltag">Quantity</div>
+          <div class="coltag">InvoiceDate</div><div class="coltag">UnitPrice</div>
+          <div class="coltag">CustomerID</div><div class="coltag">Country</div>
+        </div>
+      </div>
+      <div class="tbox">
+        <table>
+          <thead><tr><th>InvoiceNo</th><th>Description</th><th>Qty</th><th>UnitPrice</th><th>Country</th></tr></thead>
+          <tbody>
+            <tr><td>536365</td><td>WHITE HANGING HEART T-LIGHT HOLDER</td><td>6</td><td>2.55</td><td>United Kingdom</td></tr>
+            <tr><td>536365</td><td>WHITE METAL LANTERN</td><td>6</td><td>3.39</td><td>United Kingdom</td></tr>
+            <tr><td>536365</td><td>CREAM CUPID HEARTS COAT HANGER</td><td>8</td><td>2.75</td><td>United Kingdom</td></tr>
+            <tr><td>536365</td><td>KNITTED UNION FLAG HOT WATER BOTTLE</td><td>6</td><td>3.39</td><td>United Kingdom</td></tr>
+            <tr><td>536365</td><td>RED WOOLLY HOTTIE WHITE HEART</td><td>6</td><td>3.39</td><td>United Kingdom</td></tr>
+          </tbody>
+        </table>
+        <div style="padding:6px 10px; display:flex; align-items:center; justify-content:center;">
+<div class="iph" style="height:260px;width:100%;">
+    <img
+        src="images/dataframe.png"
+        alt="Cuplikan DataFrame"
+        style="width:100%;height:100%;object-fit:cover;"
+    >
+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="snum">05 / 12</span>
+</div>
+
+<!-- SLIDE 6 — PREPROCESSING -->
+<div class="slide" id="s6">
+  <span class="s-tag"><i class="fa fa-broom"></i>&nbsp; Metodologi</span>
+  <div class="slide-inner">
+    <h2 class="sh">Pra-pemrosesan &amp; Data Cleaning</h2>
+    <p class="sd">Memastikan kualitas data sebelum dilakukan rekayasa fitur RFM</p>
+    <div class="pipe">
+      <div class="pstep">
+        <span class="pn">Langkah 01</span>
+        <i class="fa fa-user-slash pi"></i>
+        <h4>Hapus CustomerID Kosong</h4>
+        <p>Baris dengan CustomerID NaN/NULL dihapus karena tidak dapat diatributkan ke segmen pelanggan tertentu.</p>
+      </div>
+      <div class="parr"><i class="fa fa-chevron-right"></i></div>
+      <div class="pstep">
+        <span class="pn">Langkah 02</span>
+        <i class="fa fa-greater-than pi"></i>
+        <h4>Filter Quantity &gt; 0</h4>
+        <p>Nilai Quantity negatif atau nol menandakan transaksi retur atau kesalahan input data.</p>
+      </div>
+      <div class="parr"><i class="fa fa-chevron-right"></i></div>
+      <div class="pstep">
+        <span class="pn">Langkah 03</span>
+        <i class="fa fa-tag pi"></i>
+        <h4>Filter UnitPrice &gt; 0</h4>
+        <p>Harga nol atau negatif merupakan anomali data yang harus disingkirkan dari analisis.</p>
+      </div>
+      <div class="parr"><i class="fa fa-chevron-right"></i></div>
+      <div class="pstep">
+        <span class="pn">Langkah 04</span>
+        <i class="fa fa-ban pi"></i>
+        <h4>Hapus Invoice Cancel</h4>
+        <p>InvoiceNo yang diawali huruf <strong class="cyan">&ldquo;C&rdquo;</strong> mengindikasikan pembatalan transaksi sehingga dikeluarkan dari data.</p>
+      </div>
+    </div>
+    <div class="shrinkbox">
+      <div class="shc"><div class="shl">Sebelum Cleaning</div><div class="shv red">541.909</div><div style="font-size:9px;color:var(--muted)">baris transaksi mentah</div></div>
+      <div class="sharr"><i class="fa fa-arrow-right"></i></div>
+      <div class="shc"><div class="shl">Setelah Cleaning</div><div class="shv cyan">4.338</div><div style="font-size:9px;color:var(--muted)">pelanggan unik valid</div></div>
+    </div>
+  </div>
+  <span class="snum">06 / 12</span>
+</div>
+
+<!-- SLIDE 7 — RFM FEATURE ENGINEERING -->
+<div class="slide" id="s7">
+  <span class="s-tag"><i class="fa fa-cogs"></i>&nbsp; Rekayasa Fitur</span>
+  <div class="slide-inner">
+    <h2 class="sh">Rekayasa Fitur RFM &amp; Normalisasi</h2>
+    <p class="sd">Menghitung nilai R, F, M per pelanggan dengan snapshot date 10 Desember 2011, lalu menormalisasi skala fitur</p>
+    <div class="lay">
+      <div class="left">
+        <div class="fcard"><div class="fl">Recency</div><code>(Snapshot Date &minus; Tgl Transaksi Terakhir) hari</code></div>
+        <div class="fcard"><div class="fl">Frequency</div><code>Jumlah Invoice unik per CustomerID</code></div>
+        <div class="fcard"><div class="fl">Monetary</div><code>&Sigma; (Quantity &times; UnitPrice) per CustomerID</code></div>
+        <div class="pt">
+          <i class="fa fa-info-circle"></i>
+          <p>Snapshot date dipilih satu hari setelah transaksi terakhir agar pelanggan paling baru bertransaksi mendapat <strong>Recency = 1</strong> (bukan 0).</p>
+        </div>
+      </div>
+      <div class="right">
+        <div class="fcard" style="text-align:center"><div class="fl">Normalisasi &mdash; StandardScaler</div><code>z = (x &minus; &mu;) / &sigma;</code></div>
+        <div class="pt">
+          <i class="fa fa-balance-scale"></i>
+          <p>Diperlukan karena skala fitur RFM sangat berbeda &mdash; Monetary bisa mencapai ratusan ribu sedangkan Frequency hanya puluhan. Tanpa normalisasi, K-Means akan bias terhadap fitur berskala besar.</p>
+        </div>
+        <div class="sg">
+          <div class="sc"><div class="sv">4.338</div><div class="sl">Pelanggan dengan fitur RFM lengkap</div></div>
+          <div class="sc"><div class="sv">3</div><div class="sl">Fitur numerik: R, F, M</div></div>
+        </div>
+        <div>
+          <div style="font-size:8px;color:var(--cyan);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Tools &amp; Teknologi</div>
+          <div class="toolrow">
+            <span class="tooltag">Python 3.x</span><span class="tooltag">Pandas</span><span class="tooltag">NumPy</span>
+            <span class="tooltag">Scikit-learn</span><span class="tooltag">Matplotlib</span><span class="tooltag">Seaborn</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="snum">07 / 12</span>
+</div>
+
+<!-- SLIDE 8 — ELBOW METHOD -->
+<div class="slide" id="s8">
+  <span class="s-tag"><i class="fa fa-chart-line"></i>&nbsp; Penentuan k Optimal</span>
+  <div class="slide-inner">
+    <h2 class="sh">Elbow Method: Mencari Jumlah Cluster Optimal</h2>
+    <p class="sd">Elbow Method dijalankan untuk nilai k dari 2 hingga 10, memplot WCSS terhadap jumlah cluster</p>
+    <div class="lay">
+      <div class="left">
+        <div class="kbig"><div class="kl">k Optimal Terpilih</div><div class="kv">k = 4</div><div class="ks">Titik siku (elbow) WCSS</div></div>
+        <div class="wlist">
+          <div class="wrow"><span class="wk">k = 2</span><span class="wv">WCSS &asymp; 9.000</span></div>
+          <div class="wrow"><span class="wk">k = 3</span><span class="wv">WCSS &asymp; 5.400</span></div>
+          <div class="wrow hl"><span class="wk">k = 4</span><span class="wv">WCSS &asymp; 4.100 &mdash; titik siku</span></div>
+          <div class="wrow"><span class="wk">k = 5+</span><span class="wv">Kurva mulai melandai</span></div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="iph" style="height:100%"><img src="images/elbow_method.png" alt="Grafik Elbow Method"></div>
+      </div>
+    </div>
+  </div>
+  <span class="snum">08 / 12</span>
+</div>
+
+<!-- SLIDE 9 — HASIL CLUSTERING -->
+<div class="slide" id="s9">
+  <span class="s-tag"><i class="fa fa-chart-bar"></i>&nbsp; Hasil &amp; Analisis</span>
+  <div class="slide-inner">
+    <h2 class="sh">Hasil K-Means Clustering (k = 4)</h2>
+    <p class="sd">Evaluasi kualitas cluster menggunakan Silhouette Score dan ringkasan statistik per cluster</p>
+    <div class="lay">
+      <div>
+        <div class="acc"><div class="al">Silhouette Score</div><div class="av">0,4755</div><div class="as">Interpretasi: Clustering Cukup Baik (Fair to Good)</div></div>
+        <div class="tbox">
+          <table>
+            <thead><tr><th>Segment</th><th>Recency</th><th>Freq.</th><th>Monetary</th><th>Jml</th></tr></thead>
+            <tbody>
+              <tr><td><span class="pill pill-vip">VIP</span></td><td>43,70</td><td>3,7</td><td>&pound;1.359</td><td>3.054</td></tr>
+              <tr><td><span class="pill pill-dorm">Dormant</span></td><td>248,08</td><td>1,6</td><td>&pound;481</td><td>1.067</td></tr>
+              <tr><td><span class="pill pill-pot">Potential</span></td><td>7,38</td><td>82,5</td><td>&pound;127.338</td><td>13</td></tr>
+              <tr><td><span class="pill pill-loy">Loyal</span></td><td>15,50</td><td>22,3</td><td>&pound;12.709</td><td>204</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="right">
+        <div class="iph" style="height:100%"><img src="images/customer_segmentation.png" alt="Scatter Plot Customer Segmentation"></div>
+      </div>
+    </div>
+  </div>
+  <span class="snum">09 / 12</span>
+</div>
+
+<!-- SLIDE 10 — PROFIL SEGMEN -->
+<div class="slide" id="s10">
+  <span class="s-tag"><i class="fa fa-users"></i>&nbsp; Profil Segmen</span>
+  <div class="slide-inner">
+    <h2 class="sh">Profil &amp; Interpretasi 4 Segmen Pelanggan</h2>
+    <p class="sd">Karakteristik unik setiap cluster berdasarkan rata-rata Recency, Frequency, dan Monetary</p>
+    <div class="seggrid">
+      <div class="segcard vip">
+        <div class="seghead"><h3 class="cyan">VIP Customer</h3><span class="pill pill-vip">70,4%</span></div>
+        <div class="segmeta"><span><b>R</b> 43,7 hr</span><span><b>F</b> 3,7x</span><span><b>M</b> &pound;1.359</span></div>
+        <p class="segp">Segmen terbesar (3.054 pelanggan) &mdash; aktif berbelanja dalam dua bulan terakhir dengan nilai pembelian wajar. Merepresentasikan basis pelanggan inti yang konsisten dan menjadi aset penting bisnis.</p>
+      </div>
+      <div class="segcard dorm">
+        <div class="seghead"><h3 class="red">Dormant Customer</h3><span class="pill pill-dorm">24,6%</span></div>
+        <div class="segmeta"><span><b>R</b> 248,1 hr</span><span><b>F</b> 1,6x</span><span><b>M</b> &pound;481</span></div>
+        <p class="segp">1.067 pelanggan yang sudah sangat lama tidak bertransaksi (Recency tinggi). Frequency &amp; Monetary rendah &mdash; berisiko mengalami churn dan butuh program win-back.</p>
+      </div>
+      <div class="segcard">
+        <div class="seghead"><h3 style="color:var(--blue-badge)">Potential Customer</h3><span class="pill pill-pot">0,3%</span></div>
+        <div class="segmeta"><span><b>R</b> 7,4 hr</span><span><b>F</b> 82,5x</span><span><b>M</b> &pound;127.338</span></div>
+        <p class="segp">Hanya 13 pelanggan, namun sangat aktif dan bernilai fantastis &mdash; kemungkinan reseller/distributor besar. Kontribusi revenue sangat signifikan, memerlukan account management khusus.</p>
+      </div>
+      <div class="segcard">
+        <div class="seghead"><h3 class="amb">Loyal Customer</h3><span class="pill pill-loy">4,7%</span></div>
+        <div class="segmeta"><span><b>R</b> 15,5 hr</span><span><b>F</b> 22,3x</span><span><b>M</b> &pound;12.709</span></div>
+        <p class="segp">204 pelanggan yang masih aktif dengan frekuensi &amp; nilai transaksi tinggi &mdash; menunjukkan loyalitas substansial terhadap perusahaan.</p>
+      </div>
+    </div>
+  </div>
+  <span class="snum">10 / 12</span>
+</div>
+
+<!-- SLIDE 11 — REKOMENDASI STRATEGI -->
+<div class="slide" id="s11">
+  <span class="s-tag"><i class="fa fa-bullhorn"></i>&nbsp; Rekomendasi</span>
+  <div class="slide-inner">
+    <h2 class="sh">Rekomendasi Strategi Pemasaran</h2>
+    <p class="sd">Strategi spesifik per segmen beserta alokasi anggaran pemasaran yang proporsional</p>
+    <div class="lay">
+      <div class="tbox">
+        <table>
+          <thead><tr><th>Segmen</th><th>Prioritas</th><th>Strategi Utama</th><th>Program Konkret</th></tr></thead>
+          <tbody>
+            <tr><td>VIP Customer</td><td class="cyan">Tinggi &mdash; Pertahankan</td><td>Retention &amp; Upselling</td><td>Loyalty points, early access produk baru, rekomendasi personal, newsletter eksklusif</td></tr>
+            <tr><td>Dormant Customer</td><td class="red">Kritis &mdash; Re-engagement</td><td>Win-back Campaign</td><td>Email &ldquo;Kami Merindukanmu&rdquo;, diskon reaktivasi 15&ndash;20%, survei kepuasan</td></tr>
+            <tr><td>Potential Customer</td><td style="color:var(--blue-badge)">Sangat Tinggi &mdash; Premium</td><td>Key Account Management</td><td>Dedicated account manager, bulk pricing, SLA khusus, undangan event eksklusif</td></tr>
+            <tr><td>Loyal Customer</td><td class="amb">Medium &mdash; Investigasi</td><td>Value Nurturing &amp; Retention</td><td>Analisis pola pembelian, produk komplementer, upgrade membership VIP tier</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div style="font-size:8px;color:var(--cyan);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Alokasi Anggaran Pemasaran</div>
+        <div class="budgetrow">
+          <div class="bc"><div class="bv">35%</div><div class="bl">VIP Customer<br>(70% pelanggan)</div></div>
+          <div class="bc"><div class="bv">30%</div><div class="bl">Potential Customer<br>(revenue terbesar)</div></div>
+          <div class="bc"><div class="bv">25%</div><div class="bl">Dormant Customer<br>(potensi win-back)</div></div>
+          <div class="bc"><div class="bv">10%</div><div class="bl">Loyal Customer<br>(investigasi)</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <span class="snum">11 / 12</span>
+</div>
+
+<!-- SLIDE 12 — KESIMPULAN -->
+<div class="slide" id="s12">
+  <span class="s-tag"><i class="fa fa-flag-checkered"></i>&nbsp; Penutup</span>
+  <div class="slide-inner">
+    <h2 class="sh">Kesimpulan &amp; Saran Pengembangan</h2>
+    <p class="sd">Ringkasan temuan penelitian, keterbatasan, dan rekomendasi untuk iterasi berikutnya</p>
+    <div class="lay">
+      <div class="box">
+        <h4><i class="fa fa-check-double"></i>&nbsp; Kesimpulan</h4>
+        <div class="ci"><i class="fa fa-check-circle"></i><span>Model RFM berhasil diekstrak dari <strong class="cyan">541.909 record</strong> menjadi data RFM untuk <strong class="cyan">4.338 pelanggan valid</strong>.</span></div>
+        <div class="ci"><i class="fa fa-check-circle"></i><span>Elbow Method mengidentifikasi <strong class="cyan">k = 4</strong> sebagai jumlah cluster optimal.</span></div>
+        <div class="ci"><i class="fa fa-check-circle"></i><span>K-Means berhasil membentuk 4 segmen bermakna: VIP (70,4%), Dormant (24,6%), Potential (0,3%), Loyal (4,7%).</span></div>
+        <div class="ci"><i class="fa fa-check-circle"></i><span>Silhouette Score <strong class="cyan">0,4755</strong> menunjukkan kualitas clustering yang cukup baik.</span></div>
+        <div class="ci"><i class="fa fa-check-circle"></i><span>Ditemukan kelompok kecil bernilai sangat tinggi (Potential, 13 orang) yang perlu penanganan khusus.</span></div>
+      </div>
+      <div class="box">
+        <h4><i class="fa fa-lightbulb"></i>&nbsp; Keterbatasan &amp; Saran Pengembangan</h4>
+        <div class="ci si"><i class="fa fa-exclamation-circle"></i><span>Dataset hanya mencakup satu tahun transaksi (2010&ndash;2011); K-Means juga sensitif terhadap outlier ekstrem.</span></div>
+        <div class="ci si"><i class="fa fa-arrow-circle-right"></i><span><strong class="amb">Algoritma alternatif</strong> &mdash; eksplorasi K-Medoids, DBSCAN, atau Gaussian Mixture Models.</span></div>
+        <div class="ci si"><i class="fa fa-arrow-circle-right"></i><span><strong class="amb">RFM Scoring kuartil</strong> (1&ndash;5) dan penanganan outlier (log transform/winsorizing) pada Monetary.</span></div>
+        <div class="ci si"><i class="fa fa-arrow-circle-right"></i><span><strong class="amb">Fitur tambahan</strong> &mdash; kategori produk, lokasi geografis, atau channel akuisisi.</span></div>
+        <div class="ci si"><i class="fa fa-arrow-circle-right"></i><span><strong class="amb">Validasi bisnis</strong> &amp; monitoring dinamis bersama tim penjualan dan pemasaran secara berkala.</span></div>
+      </div>
+    </div>
+    <div class="closing">
+      <i class="fa fa-heart" style="color:var(--cyan)"></i>&nbsp; Terima kasih atas perhatiannya &nbsp;&middot;&nbsp; Teknik Informatika, Fakultas Teknik, Universitas Trunojoyo Madura &nbsp;&middot;&nbsp; 2026
+    </div>
+  </div>
+  <span class="snum">12 / 12</span>
+</div>
+
+<div class="thumbrow" id="tr">
+  <div class="thumb on"  data-i="0">01<br>Judul</div>
+  <div class="thumb"     data-i="1">02<br>Pendahuluan</div>
+  <div class="thumb"     data-i="2">03<br>Model RFM</div>
+  <div class="thumb"     data-i="3">04<br>K-Means</div>
+  <div class="thumb"     data-i="4">05<br>Dataset</div>
+  <div class="thumb"     data-i="5">06<br>Preprocessing</div>
+  <div class="thumb"     data-i="6">07<br>Fitur RFM</div>
+  <div class="thumb"     data-i="7">08<br>Elbow Method</div>
+  <div class="thumb"     data-i="8">09<br>Hasil Cluster</div>
+  <div class="thumb"     data-i="9">10<br>Profil Segmen</div>
+  <div class="thumb"     data-i="10">11<br>Strategi</div>
+  <div class="thumb"     data-i="11">12<br>Kesimpulan</div>
+</div>
+<div class="keyhint"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> navigasi &nbsp;|&nbsp; klik thumbnail untuk lompat langsung &nbsp;|&nbsp; swipe di layar sentuh</div>
+
+</div><script>
+const slides = document.querySelectorAll('.slide');
+const thumbs = document.querySelectorAll('.thumb');
+const nc = document.getElementById('nc');
+const pg = document.getElementById('pgbar');
+let cur = 0;
+
+function go(n) {
+  slides[cur].classList.remove('active');
+  thumbs[cur].classList.remove('on');
+  cur = Math.max(0, Math.min(n, slides.length - 1));
+  slides[cur].classList.add('active');
+  thumbs[cur].classList.add('on');
+  nc.textContent = (cur + 1) + ' / ' + slides.length;
+  pg.style.width = ((cur + 1) / slides.length * 100) + '%';
+  thumbs[cur].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+document.getElementById('bNext').onclick = () => go(cur + 1);
+document.getElementById('bPrev').onclick = () => go(cur - 1);
+thumbs.forEach(t => t.addEventListener('click', () => go(+t.dataset.i)));
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(cur + 1);
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(cur - 1);
+});
+let tx = 0;
+document.querySelector('.deck').addEventListener('touchstart', e => tx = e.touches[0].clientX, { passive: true });
+document.querySelector('.deck').addEventListener('touchend', e => {
+  const d = e.changedTouches[0].clientX - tx;
+  if (Math.abs(d) > 45) go(cur + (d < 0 ? 1 : -1));
+}, { passive: true });
+</script>
+</body>
+</html>
